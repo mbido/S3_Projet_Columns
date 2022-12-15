@@ -413,16 +413,10 @@ void print_colonne(char *briques)
   printf("+-+\n");
 }
 
-<<<<<<< HEAD
-/////////////////////////////////////main////////////////////////////////////////////
-int main() {
-=======
-//////////////////////////////////
-/// main////////////////////////////////////////////
+//////////////////////main//////////////////////////////
 int main()
 {
->>>>>>> 6b290b21b113b69382c7d92c880531216174e907
-  char briques[3] = {1, 2, 3} // unsigned char *tab = init_tab(10);
+  char briques[3] = {1, 2, 3}; // unsigned char *tab = init_tab(10);
 
   print_colonne(briques);
   printf("\napres permutation :\n");
