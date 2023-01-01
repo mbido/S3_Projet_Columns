@@ -8,12 +8,6 @@
 
 #include <string.h>
 
-struct resultat
-{
-  int num_colonne;
-  int num_permutation;
-};
-
 struct grille
 {
   char *tab;
@@ -41,6 +35,8 @@ size_t linearise_co(struct grille *g, size_t i, size_t j)
 
 void descend_brique(struct grille *g, size_t i, size_t j)
 {
+  // fonction auxiliaire a la fonction 'gravite'
+
   // on est dans le cas ou une brique est presente en j+1, i et un vide est
   // present en j, i. On descend alors la brique du dessus tout en bas du trou
   size_t h = g->height;
@@ -104,6 +100,8 @@ void double_hauteur(struct grille *g)
 
 void insert(struct grille *g, size_t colonne, char *briques)
 {
+  //pose sur le tableau de jeu les briques entrees en colonne entree
+
   size_t h = g->height;
   size_t w = g->width;
   assert(colonne < w);
@@ -120,8 +118,9 @@ void insert(struct grille *g, size_t colonne, char *briques)
   index = linearise_co(g, colonne, j);
 
   // si la taille est insuffisante
-  if (j > h - 3)
+  if (j > h - 3) {
     double_hauteur(g);
+  }
   g->tab[j] = briques[2];
   g->tab[j + 1] = briques[1];
   g->tab[j + 2] = briques[0];
@@ -140,7 +139,10 @@ size_t get_colonne(size_t index, struct *grille g)
   return index % g->width;
 }
 
-size_t get_ligne(size_t index, struct *grille g) { return index / g->width; }
+size_t get_ligne(size_t index, struct *grille g) 
+{ 
+  return index / g->width; 
+}
 
 char get_color(size_t index, struct *grille g)
 {
@@ -152,7 +154,7 @@ char get_color(size_t index, struct *grille g)
 int *alignement(struct grille *g, size_t index)
 // retourne un tableau de 3 char representant respectivement
 // - 0 : alignement horizontal
-// - 1 : alignement premiere diagonale
+// - 1 : alignement premiere diagonale 
 // - 2 : alignement deuxieme diagonale
 
 // on se trouve a l'index x :
@@ -178,11 +180,13 @@ k       l
   if (g->width - colonne < 2)
     check_right = g->width - colonne;
 
+
+  // cas ou on se trouve a deux colonnes minimum du bord gauche
   if (check_left == 2)
   {
+    // cas ou on se trouve a deux colonnes minimum du bord droit
     if (check_right == 2)
     {
-      // a tester en une ligne sans caste
       res[0] = get_color(index - 1, g) == color;  // f
       res[0] += get_color(index + 1, g) == color; // g
       res[0] += get_color(index - 1, g) == color &&
@@ -204,6 +208,7 @@ k       l
       res[2] += get_color(index - g->width - 1, g) == color &&
                 get_color(index - 2 * g->width - 2, g) == color; // k
     }
+    // cas ou on se trouve a une colonne du bord droit
     else if (check_right == 1)
     {
       res[0] = get_color(index - 1, g) == color;  // f
@@ -221,6 +226,7 @@ k       l
       res[2] += get_color(index - g->width - 1, g) == color &&
                 get_color(index - 2 * g->width - 2, g) == color; // k
     }
+    // cas ou on se trouve sur le bord droit
     else
     {
       res[0] = get_color(index - 1, g) == color; // f
@@ -236,8 +242,10 @@ k       l
                 get_color(index - 2 * g->width - 2, g) == color; // k
     }
   }
+  // cas ou on se trouve a une colonne du bord gauche
   else if (check_left == 1)
   {
+    // cas ou on se trouve a deux colonnes minimum du bord droit
     if (check_right == 2)
     {
       res[0] = get_color(index - 1, g) == color;  // f
@@ -255,6 +263,7 @@ k       l
       res[2] += get_color(index + g->width + 1, g) == color &&
                 get_color(index + 2 * g->width + 2, g) == color; // b
     }
+    // cas ou on se trouve a une colonne du bord droit
     else if (check_right == 1)
     {
       res[0] = get_color(index - 1, g) == color;  // f
@@ -267,8 +276,10 @@ k       l
       res[2] += get_color(index - g->width - 1, g) == color; // i
     }
   }
+  // cas ou on se trouve sur le bord gauche
   else if (check_left == 0)
   {
+    // cas ou on se trouve a deux colonnes minimum du bord droit
     if (check_right == 2)
     {
       res[0] = get_color(index + 1, g) == color; // g
@@ -283,6 +294,7 @@ k       l
       res[2] += get_color(index + g->width + 1, g) == color &&
                 get_color(index + 2 * g->width + 2, g) == color; // b
     }
+    // cas ou on se trouve a une colonne du bord droit
     else if (check_right == 1)
     {
       res[0] = get_color(index + 1, g) == color; // g
@@ -294,7 +306,7 @@ k       l
   }
 }
 
-// verifie l'alignement du haut de la colonne vers le bas
+// verifie l'alignement vertical de la colonne
 // index = haut de la colonne
 // output est un tableau de taille 5 dans lequel on met les index de l'alignement
 void alignement_vers_le_bas(struct grille *g, index, size_t **output)
