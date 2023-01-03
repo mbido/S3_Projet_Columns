@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <time.h>
 #include <string.h>
 
 
@@ -703,7 +703,6 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
 int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, size_t ***save)
 {
 
-
   int points = 0;
   size_t w = g->width;
   struct tableau index_a_retirer;
@@ -769,7 +768,7 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
 
 int main(int argc, char const *argv[])
 { 
-  srand(0);
+  srand(time(NULL));
 
   struct grille g;
   create_grille(&g, 5);
@@ -783,8 +782,6 @@ int main(int argc, char const *argv[])
     free(b);
   }
 
-  g.tab[66] = 4;
-  g.tab[70] = 4;
 
 
   size_t *output = malloc(5 * sizeof(size_t));
@@ -799,15 +796,6 @@ int main(int argc, char const *argv[])
 
   free(output);
 
-  struct tableau index_a_retirer;
-  create_tableau(&index_a_retirer);
-  int points = count_points(&g, 2, 1, &index_a_retirer);
-  printf("les points gagnes seront : %d\n", points);
-  printf("les briques a retirer seront : ");
-  print_array(index_a_retirer.data, index_a_retirer.length, 0);
-  size_t *list_ind = get_index_from_alignement(&g, 62, 1, 5, 7);
-  print_array(list_ind, 5, 7);
-
 
 
   struct tableau cols;
@@ -820,10 +808,8 @@ int main(int argc, char const *argv[])
   printf("le nombre de points gagnes en ayant placer la brique en %d est de : %d\n", 2, p);
 
 
-  destroy_tableau(&index_a_retirer);
   destroy_tableau(&cols);
   destroy_grille(&g);
-  free(list_ind);
   free(save);
   return 0;
 }
