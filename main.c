@@ -59,6 +59,57 @@ void double_hauteur(struct grille *g)
   g->height = h * 2;
 }
 
+
+
+///////////////// creation structure tableau dynamique ////////////////////
+
+struct tableau
+{
+  size_t *data;
+  size_t length;
+  size_t capacity;
+};
+
+void create_tableau(struct tableau *self)
+{
+  self->length = 0;
+  self->capacity = 10;
+  self->data = malloc(10 * sizeof(size_t));
+}
+
+
+void destroy_tableau(struct tableau *self)
+{
+  free(self->data);
+  self->data = NULL;
+  self->length = self->capacity = 0;
+}
+
+void double_taille(struct tableau *self)
+{
+  size_t l = self->length;
+  size_t c = self->capacity;
+  size_t *new = malloc(c * 2 * sizeof(size_t));
+  for (size_t i = 0; i < l; ++i)
+  {
+    new[i] = self->data[i];
+  }
+  free(self->data);
+  self->data = new;
+  self->capacity = c * 2;
+}
+
+void append(struct tableau * self, size_t elt)
+{
+  if (self->length >= self->capacity)
+  {
+    double_taille(self);
+  }
+  self->data[self->length] = elt;
+  ++self->length;
+}
+
+
 ////////////////// fonctions utiles ///////////////////////////
 
 // permet de ne pas se tromper lors du calcul de la position d'une case
@@ -99,6 +150,15 @@ void permutation(char *briques)
   briques[2] = temp;
 }
 
+char *rand_briques()
+{
+  char *res = malloc(3 * sizeof(char));
+  res[0] = (rand() % 6) + 1;
+  res[1] = (rand() % 6) + 1;
+  res[2] = (rand() % 6) + 1;
+  return res;
+}
+
 // affiche un bloc de brique (pour les tests)
 void print_briques(char *briques)
 {
@@ -122,10 +182,10 @@ void print_tableau(struct grille *g)
   {
 
     
-    printf("\n");
+    printf("|\n");
     for (size_t i2 = 0; i2 < w; ++i2)
     {
-      printf("---");
+      printf("----");
     }
     printf("\n");
 
@@ -133,19 +193,23 @@ void print_tableau(struct grille *g)
     { 
       index = linearise_co(g, i, j);
       int color = (int)g->tab[index];
-      printf("|%s%d%s|", colors[color], color, colors[0]);
+      printf("|%s|%d|%s", colors[color], color, colors[0]);
       
     }
   }
-  printf("\n");
+  printf("|\n");
 }
 
 // permet d'afficher un array de size_t (pour simplifier les tests)
-void print_array(size_t *array, size_t length)
+void print_array(size_t *array, size_t length, size_t jusqua)
 {
   printf("[");
   for (size_t i = 0; i < length; ++i)
-  {
+  { 
+    if (array[i] == jusqua)
+    {
+      break;
+    }
     printf("%zd, ", array[i]);
   }
   printf("]\n");
@@ -417,34 +481,27 @@ k       l
 // on ne regarde que les 5 premieres briques, les autres ne sont pas utiles
 // la fonction renvoie la taille de l'alignement et met dans le parametre 'output'
 // la position de chacune des ses briques
-char alignement_vertical(struct grille *g, size_t colonne, size_t **output)
+char alignement_vertical(struct grille *g, size_t index, size_t **output)
 {
-  size_t h = g->height;
-  size_t w = g->width;
-  // on se place sur la brique la plus haute :
-  size_t j = h - 1;
-  size_t index = linearise_co(g, colonne, j);
-  while (index < h * w && g->tab[index] == 0)
-  {
-    --j;
-    index = linearise_co(g, colonne, j);
-  }
+  size_t j = get_ligne(index, g);
+  size_t colonne = get_colonne(index, g);
+
   char color = g->tab[index];
   *output[0] = index;
   char count = 1;
   for (int i = 1; i < 5; i++)
   {
     index = linearise_co(g, colonne, j - i);
-    if (get_color(index, g) != color)
+    char current_color = get_color(index, g);
+    if (current_color != color)
     {
-      if (count >= 3)
+      if (count >= 3 || current_color == 0)
       {
         break;
       }
       color = g->tab[index];
       count = 0;
     }
-    // cette ligne casse tout pourquoi ?
     (*output)[(int)count] = index;
     count++;
   }
@@ -520,6 +577,7 @@ size_t *get_index_from_alignement (struct grille *g, size_t index, int type, int
       {
         k = 1;
         cote = -1;
+        --l;
       }
     }
   }
@@ -541,6 +599,7 @@ size_t *get_index_from_alignement (struct grille *g, size_t index, int type, int
       {
         k = 1;
         cote = -1;
+        --l;
       }
     }
   }
@@ -550,14 +609,12 @@ size_t *get_index_from_alignement (struct grille *g, size_t index, int type, int
 // permet de compter les points qui serons gagnes lors de la suppression
 // des alignements presents en fonction de lambda, le coeficient de points
 // elle prend en argument la colonne ou le bloc de 3 briques est pose
-// elle sauvegarde de plus dans une liste 'output' chaque index des briques qui
-// serons supprimees il y a 29 index differents au maximum mais comme ils peuvent etre 
-// appeles plusieur fois en tout il faut un tableau de taille 48
-int count_points(struct grille *g, size_t colonne, int lambda, size_t **output)
+// elle sauvegarde de plus dans un tableau dynamique 'output' chaque index des briques qui
+// serons supprimees
+int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *output)
 {
   size_t h = g->height;
   size_t w = g->width;
-  int index_output = 0;
   int res = 0;
 
   // on se place sur la brique la plus haute :
@@ -570,17 +627,16 @@ int count_points(struct grille *g, size_t colonne, int lambda, size_t **output)
   }
 
   // cas ou on est en dehors des limites du tableau ie. la colonne est vide
-  // (ne devrait pas arriver)
   if (get_color(index, g) == 0)
   {
     return 0;
   }
 
   // sinon (la colonne n'est pas vide)
-  // pour chacune des trois premieres briques :
-  for (int i = 0; i < 3; ++i)
+  size_t i = 0;
+  index = linearise_co(g, colonne, j);
+  while (get_color(index, g) != 0) // avant : for (int i = 0; i < 3; ++i)
   {
-    index = linearise_co(g, colonne, j - i);
     char *als = alignement(g, index);
     // pour chacuns des trois alignements (ne compte pas le vertical)
     for (int i2 = 0; i2 < 3; ++i2)
@@ -594,73 +650,180 @@ int count_points(struct grille *g, size_t colonne, int lambda, size_t **output)
         size_t *list_ind = get_index_from_alignement(g, index, i2, als[i2], h * w);
         for (int i3 = 0; i3 < 5 && list_ind[i3] != h * w; ++i3)
         {
-          (*output)[index_output] = list_ind[i3];
-          ++index_output;
+          append(output, list_ind[i3]);
         }
         free(list_ind);
       }
     }
     free(als);
+    ++i;
+    index = linearise_co(g, colonne, j - i);
   }
-  // pour l'alignement vertical :
-  size_t *list_ind = malloc(5 * sizeof(size_t));
-  list_ind[0] = list_ind[1] = list_ind[2] = list_ind[3] = list_ind[4] = h * w;
-  char c = alignement_vertical(g, colonne, &list_ind);
-  if (c >= 3)
-  {
-    // ajout des points :
-    res += lambda * (c - 2);
 
-    // sauvegarde des index :
-    for (int i3 = 0; i3 < 5 && list_ind[i3] != h * w; ++i3)
+  // pour l'alignement vertical :
+  i = 0;
+  index = linearise_co(g, colonne, j);
+  bool alignement_present;
+  while (get_color(index, g) != 0)
+  {
+    alignement_present = false;
+    size_t *list_ind = malloc(5 * sizeof(size_t));
+    list_ind[0] = list_ind[1] = list_ind[2] = list_ind[3] = list_ind[4] = h * w;
+    char c = alignement_vertical(g, index, &list_ind);
+    if (c >= 3)
     {
-      (*output)[index_output] = list_ind[i3];
-      ++index_output;
+      alignement_present = true;
+      // ajout des points :
+      res += lambda * (c - 2);
+
+      // sauvegarde des index :
+      for (int i3 = 0; i3 < 5 && list_ind[i3] != h * w; ++i3)
+      {
+        append(output, list_ind[i3]);
+      }
     }
+    free(list_ind);
+    if (alignement_present)
+    {
+      i += c;
+    }
+    else
+    {
+      i += 3;
+    }
+    index = linearise_co(g, colonne, j - i);
   }
-  free(list_ind);
   return res;
 }
+
+// permet de supprimer les alignements apres une insertion sur un tableau dynamique de colonnes
+// renvoie le nombre de points gagne en fonction de lambda qui sera 
+// par defaut et lors du premier appel a la fonction egale a 1
+// quand 'save' est vide, elle comporte 'g->width' pointeurs 'NULL' 
+int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, size_t ***save)
+{
+
+
+  int points = 0;
+  size_t w = g->width;
+  struct tableau index_a_retirer;
+  create_tableau(&index_a_retirer);
+  bool *gravite_applique = calloc(w, sizeof(bool));
+
+  for(size_t c = 0; c < colonnes->length; ++c)
+  {
+    size_t colonne = colonnes->data[c];
+    // on regarde le nombre de point que l'on vas gagner plus les index a retirer
+    points += count_points(g, colonne, lambda, &index_a_retirer);
+  }
+
+  // pour chaque index on enregistre sa colonne dans une liste de liste si elle n'est pas déjà enregistree
+  // et on met la brique de cet index a zero'
+  for (size_t i = 0; i < index_a_retirer.length; ++i)
+  {
+    size_t index = index_a_retirer.data[i];
+    size_t col = get_colonne(index, g);
+    if ((*save)[col] != NULL)
+    {
+      save_colonne(g, col, save);
+    }
+    g->tab[index] = 0;
+
+    // on applique la gravite sur chaque colonne d'index retire
+    bool grv = gravite(g, col);
+    if (grv)
+    {
+      gravite_applique[col] = grv;
+    }
+  }
+
+
+  // si la gravite a ete applique on fait un appel recursif sur toutes les colonnes descendues
+  // avec lambda incremente on renvoie le total des points
+
+  // on creer un tableau de colonnes a parcourir a partir de celles descendues :
+  struct tableau next_cols;
+  create_tableau(&next_cols);
+  for (size_t i = 0; i < w; ++i)
+  {
+    if (gravite_applique[i])
+    {
+      append(&next_cols, i);
+    }
+  }
+
+  if (next_cols.length > 0)
+  {
+    points += suppr_alignement(g, &next_cols, lambda + 1, save);
+  }
+  
+
+  free(gravite_applique);
+  destroy_tableau(&index_a_retirer);
+  destroy_tableau(&next_cols);
+  return points;
+}
+
 
 /////////////// fonction main ///////////////
 
 int main(int argc, char const *argv[])
 { 
-  char briques1[3] = {1, 1, 1};
+  srand(0);
 
   struct grille g;
   create_grille(&g, 5);
 
-  insert(&g, 1, briques1);
-  insert(&g, 1, briques1);
-  insert(&g, 2, briques1);
-  insert(&g, 2, briques1);
-  insert(&g, 3, briques1);
-  insert(&g, 3, briques1);
+  size_t col;
+  for (int i = 0; i < 30; ++i)
+  {
+    col = rand() % g.width;
+    char *b = rand_briques();
+    insert(&g, col, b);
+    free(b);
+  }
 
-
+  g.tab[66] = 4;
+  g.tab[70] = 4;
 
 
   size_t *output = malloc(5 * sizeof(size_t));
   output[0] = output[1] = output[2] = output[3] = output[4] = 0;
 
-  char av = alignement_vertical(&g, 2, &output);
+  char av = alignement_vertical(&g, 12, &output);
 
   printf("alignement verticale : %d\nen position : ", av);
-  print_array(output, 5);
+  print_array(output, 5, 0);
   
   print_tableau(&g);
 
   free(output);
 
-  size_t *index_a_retirer = calloc(48, sizeof(size_t));
+  struct tableau index_a_retirer;
+  create_tableau(&index_a_retirer);
   int points = count_points(&g, 2, 1, &index_a_retirer);
   printf("les points gagnes seront : %d\n", points);
   printf("les briques a retirer seront : ");
-  print_array(index_a_retirer, 48);
+  print_array(index_a_retirer.data, index_a_retirer.length, 0);
+  size_t *list_ind = get_index_from_alignement(&g, 62, 1, 5, 7);
+  print_array(list_ind, 5, 7);
 
 
+
+  struct tableau cols;
+  create_tableau(&cols);
+  append(&cols, 2);
+  size_t **save = calloc(g.width, sizeof(size_t*));
+  int p = suppr_alignement(&g, &cols, 1, &save);
+
+  print_tableau(&g);
+  printf("le nombre de points gagnes en ayant placer la brique en %d est de : %d\n", 2, p);
+
+
+  destroy_tableau(&index_a_retirer);
+  destroy_tableau(&cols);
   destroy_grille(&g);
-
+  free(list_ind);
+  free(save);
   return 0;
 }
