@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 
+#define SIZE_T_MAX ((size_t)(~0UL))
 
 
 
@@ -556,6 +557,7 @@ size_t *get_index_from_alignement (struct grille *g, size_t index, int type, int
       {
         k = 1;
         cote = -1;
+        --l;
       }
     }
   }
@@ -635,7 +637,7 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
   // sinon (la colonne n'est pas vide)
   size_t i = 0;
   index = linearise_co(g, colonne, j);
-  while (get_color(index, g) != 0) // avant : for (int i = 0; i < 3; ++i)
+  while (get_color(index, g) != 0)
   {
     char *als = alignement(g, index);
     // pour chacuns des trois alignements (ne compte pas le vertical)
@@ -643,12 +645,17 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
     {
       if (als[i2] >= 3)
       {
+        // on separe dans 'output' les alignements par une valeur impossible
+        // ici on utilise 'SIZE_T_MAX' definie en haut de fichier
+        append(output, SIZE_T_MAX);
+
+
         // ajout des points :
         res += lambda * (als[i2] - 2);
 
         // sauvegarde des index :
-        size_t *list_ind = get_index_from_alignement(g, index, i2, als[i2], h * w);
-        for (int i3 = 0; i3 < 5 && list_ind[i3] != h * w; ++i3)
+        size_t *list_ind = get_index_from_alignement(g, index, i2, als[i2], SIZE_T_MAX);
+        for (int i3 = 0; i3 < 5 && list_ind[i3] != SIZE_T_MAX; ++i3)
         {
           append(output, list_ind[i3]);
         }
@@ -696,6 +703,66 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
   return res;
 }
 
+//////////////////// fonctions pour gerer les conflits //////////////////
+
+//permet d'avoir la taille d'un motif
+size_t taille_motif(struct tableau *tab, size_t split, size_t index_courant)
+{
+  size_t res = 0;
+  while (index_courant < tab->length && tab->data[index_courant] != split)
+  {
+    ++res;
+    ++index_courant;
+  }
+  return res;
+}
+
+// permet de comparer deux motifs
+// si les motifs compares possede au moins deux elements communs, on renvoie true
+bool compare_motif(size_t* array1, size_t size1, size_t* array2, size_t size2)
+{
+  size_t count = 0;
+  for (size_t i = 0; i < size1; i++) {
+    for (size_t j = 0; j < size2; j++) {
+      if (array1[i] == array2[j]) {
+        count++;
+      }
+    }
+  }
+  //(count >= 2)? printf("comparaison : true\n") : printf("comparaison : false\n");
+  return count >= 2;
+}
+
+// permet de supprimer certain conflits qui apparaissent lors du calcul de points
+// renvoie le nombre de points a retirer du total des points pour avoir quelque chose de correcte
+// la variable 'split' est en gros un separateur entre les index pour informer que l'on change d'alignement
+int suppr_conflit(struct tableau *tab, size_t split)
+{
+  int res = 0;
+  // le premier element est un separateur
+  size_t index_courant = 1;
+  for(;index_courant < tab->length;)
+  {
+    size_t t1 = taille_motif(tab, split, index_courant);
+    
+    for(size_t index_suivant = index_courant + t1 + 1; index_suivant < tab->length;)
+    {
+      size_t t2 = taille_motif(tab, split, index_suivant);
+      if (compare_motif(&tab->data[index_courant], t1, &tab->data[index_suivant], t2))
+      {
+        (t1 > t2)? (res += t2 - 2) : (res += t1 - 2);
+        break;
+      }
+      index_suivant = index_suivant + t2 + 1;      
+    }
+
+    index_courant = index_courant + t1 + 1;
+  }
+  return res;
+}
+
+//////////////////// on reprend les fonctions principales ///////////////////////////
+
 // permet de supprimer les alignements apres une insertion sur un tableau dynamique de colonnes
 // renvoie le nombre de points gagne en fonction de lambda qui sera 
 // par defaut et lors du premier appel a la fonction egale a 1
@@ -721,6 +788,9 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
   for (size_t i = 0; i < index_a_retirer.length; ++i)
   {
     size_t index = index_a_retirer.data[i];
+    if (index == SIZE_T_MAX) {
+      continue;
+    }
     size_t col = get_colonne(index, g);
     if ((*save)[col] != NULL)
     {
@@ -750,6 +820,10 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
       append(&next_cols, i);
     }
   }
+  // on supprime les points en trop du aux conflits :
+  points -= lambda * suppr_conflit(&index_a_retirer, SIZE_T_MAX);
+  //print_array(index_a_retirer.data, index_a_retirer.length, SIZE_T_MAX - 1);
+
 
   if (next_cols.length > 0)
   {
@@ -768,33 +842,47 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
 
 int main(int argc, char const *argv[])
 { 
-  srand(time(NULL));
-
+  //srand(time(NULL));
+  srand(0);
   struct grille g;
   create_grille(&g, 5);
 
-  size_t col;
-  for (int i = 0; i < 30; ++i)
-  {
-    col = rand() % g.width;
-    char *b = rand_briques();
-    insert(&g, col, b);
-    free(b);
-  }
+  // size_t col;
+  // for (int i = 0; i < 30; ++i)
+  // {
+  //   col = rand() % g.width;
+  //   char *b = rand_briques();
+  //   insert(&g, col, b);
+  //   free(b);
+  // }
+
+  g.tab[1] = 3;
+  g.tab[2] = 3;
+  g.tab[3] = 2;
+  g.tab[4] = 2;
+  g.tab[6] = 2;
+  g.tab[7] = 2;
+
+  char *briques = malloc(3 * sizeof(char));
+  briques[0] = 3;
+  briques[1] = 4;
+  briques[2] = 5;
+  insert(&g, 0, briques);
+  free(briques);
 
 
 
-  size_t *output = malloc(5 * sizeof(size_t));
-  output[0] = output[1] = output[2] = output[3] = output[4] = 0;
+  // size_t *output = malloc(5 * sizeof(size_t));
+  // output[0] = output[1] = output[2] = output[3] = output[4] = 0;
 
-  char av = alignement_vertical(&g, 12, &output);
+  // char av = alignement_vertical(&g, 12, &output);
 
-  printf("alignement verticale : %d\nen position : ", av);
-  print_array(output, 5, 0);
+  // printf("alignement verticale : %d\nen position : ", av);
+  // print_array(output, 5, 0);
   
   print_tableau(&g);
 
-  free(output);
+  // free(output);
 
 
 
