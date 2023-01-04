@@ -928,7 +928,7 @@ int main(int argc, char const *argv[])
       fgets(buf, BUFSIZE, stdin);
       briques[i] = buf[0];
     }
-    permutation = choix_player(g, briques, column);
+    permutation = choix_player(&g, &briques, column);
     
     // send column
     printf("%i\n", column);
@@ -1014,5 +1014,7 @@ int main(int argc, char const *argv[])
   free(briques);
 
   **/
+  destroy_grille(&g);
+  free(briques);
   return 0;
 }
