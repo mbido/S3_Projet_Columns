@@ -60,7 +60,17 @@ void double_hauteur(struct grille *g)
   g->height = h * 2;
 }
 
-
+// permet de copier un tableau de jeu dans un autre
+void copie(struct grille *self, struct grille *other)
+{
+  self->width = other->width;
+  self->height = other->height;
+  self->tab = malloc(self->width * self->height * sizeof(char));
+  for (size_t i = 0; i < self->width * self->height; ++i)
+  {
+    self->tab[i] = other->tab[i];
+  }
+}
 
 ///////////////// creation structure tableau dynamique ////////////////////
 
@@ -159,6 +169,8 @@ char *rand_briques()
   res[2] = (rand() % 6) + 1;
   return res;
 }
+
+
 
 // affiche un bloc de brique (pour les tests)
 void print_briques(char *briques)
@@ -300,7 +312,7 @@ bool gravite(struct grille *g, size_t colonne)
   {
     // la deuxieme condition (apres le "&&") est la pour le cas ou on fait
     // descendre la brique la plus haute et il y a donc plus de brique a descendre
-    if (g->tab[index] == 0 && g->tab[linearise_co(g, colonne, j + 1)] != 0)
+    if (g->tab[index] == 0 && linearise_co(g, colonne, j + 1) < h * w && g->tab[linearise_co(g, colonne, j + 1)] != 0)
     {
       descend_brique(g, colonne, j);
       res = true;
@@ -509,18 +521,6 @@ char alignement_vertical(struct grille *g, size_t index, size_t **output)
   return count;
 }
 
-// permet de sauvegarder une colonne dans une liste de liste
-// utile lors de la simulation de coups étant donné que l'on doit
-// reellement le faire puis reinitialiser la colonne
-void save_colonne(struct grille *g, size_t colonne, size_t ***output)
-{
-  size_t *save = malloc(g->height * sizeof(size_t));
-  for (size_t j = 0; get_color(linearise_co(g, colonne, j), g) != 0; ++j)
-  {
-    save[j] = g->tab[linearise_co(g, colonne, j)];
-  }
-  (*output)[colonne] = save;
-}
 
 // permet de recuperer les index d'un alignement en fonction
 // d'une brique, de la taille de l'alignement et du type d'alignement :
@@ -766,8 +766,7 @@ int suppr_conflit(struct tableau *tab, size_t split)
 // permet de supprimer les alignements apres une insertion sur un tableau dynamique de colonnes
 // renvoie le nombre de points gagne en fonction de lambda qui sera 
 // par defaut et lors du premier appel a la fonction egale a 1
-// quand 'save' est vide, elle comporte 'g->width' pointeurs 'NULL' 
-int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, size_t ***save)
+int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
 {
 
   int points = 0;
@@ -783,8 +782,7 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
     points += count_points(g, colonne, lambda, &index_a_retirer);
   }
 
-  // pour chaque index on enregistre sa colonne dans une liste de liste si elle n'est pas déjà enregistree
-  // et on met la brique de cet index a zero'
+  // on met la brique index a zero'
   for (size_t i = 0; i < index_a_retirer.length; ++i)
   {
     size_t index = index_a_retirer.data[i];
@@ -792,10 +790,7 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
       continue;
     }
     size_t col = get_colonne(index, g);
-    if ((*save)[col] != NULL)
-    {
-      save_colonne(g, col, save);
-    }
+    
     g->tab[index] = 0;
 
     // on applique la gravite sur chaque colonne d'index retire
@@ -827,7 +822,7 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
 
   if (next_cols.length > 0)
   {
-    points += suppr_alignement(g, &next_cols, lambda + 1, save);
+    points += suppr_alignement(g, &next_cols, lambda + 1);
   }
   
 
@@ -837,39 +832,114 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda, siz
   return points;
 }
 
+/////////////// fonctions relatives au joueur ////////////////////
+
+
+// permet de choisir son coup
+// renvoie le nombre de permutation et enregistre dans la variable 'output'
+// sur quelle colonne placer les briques
+// un coup est represente par (3 * colonne + nb_permutations)
+int choix_player(struct grille *g, char *briques, size_t *output)
+{
+  int max_points = -1;
+  struct grille jeu_temp;
+
+  struct tableau coups;
+  create_tableau(&coups);
+  size_t w = g->width;
+
+  // pour chaque colonne
+  for (size_t c = 0; c < w; ++c)
+  {
+    // pour chaque permutation
+    for (int p = 0; p < 3; ++p)
+    {
+      copie(&jeu_temp, g);
+
+      // on fait le coup
+      permutation(briques);
+
+      insert(&jeu_temp, c, briques);
+
+      struct tableau col;
+      create_tableau(&col);
+      append(&col, c);
+      int points = suppr_alignement(&jeu_temp, &col, 1);
+      destroy_tableau(&col);
+
+      // on enregistre points et coup si points >= max_points
+
+      if (points > max_points)
+      {
+        max_points = points;
+        coups.length = 0;
+        append(&coups, 3 * c + (p + 1) % 3);
+      }
+      else if (points == max_points)
+      {
+        append(&coups, 3 * c + p);
+      }
+      destroy_grille(&jeu_temp);
+    }
+  }
+
+  // Info : on a maintenant tous les coups qui apportent le maximum de points
+  // l'etape suivante est de choisir parmis ces coups lequel il faut faire
+  // intuitivement on peux se dire que prendre toujours le premier est une mauvaise idee
+  // car le joueur ne jouera que la premiere colonne
+
+
+  // Choix aleatoire :
+  size_t choix = coups.data[rand() % coups.length];
+  *output = choix / 3; // la colonne 
+  int perm = choix % 3; // nombre de permutations
+  destroy_tableau(&coups);
+
+  return perm;
+}
+
 
 /////////////// fonction main ///////////////
 
 int main(int argc, char const *argv[])
 { 
-  //srand(time(NULL));
-  srand(0);
+  srand(time(NULL));
   struct grille g;
   create_grille(&g, 5);
 
-  // size_t col;
-  // for (int i = 0; i < 30; ++i)
-  // {
-  //   col = rand() % g.width;
-  //   char *b = rand_briques();
-  //   insert(&g, col, b);
-  //   free(b);
-  // }
+  size_t col;
+  for (int i = 0; i < 30; ++i)
+  {
+    col = rand() % g.width;
+    char *b = rand_briques();
+    insert(&g, col, b);
+    free(b);
+  }
 
-  g.tab[1] = 3;
-  g.tab[2] = 3;
-  g.tab[3] = 2;
-  g.tab[4] = 2;
-  g.tab[6] = 2;
-  g.tab[7] = 2;
+  // g.tab[1] = 3;
+  // g.tab[2] = 3;
+  // g.tab[3] = 2;
+  // g.tab[4] = 2;
+  // g.tab[6] = 2;
+  // g.tab[7] = 2;
 
   char *briques = malloc(3 * sizeof(char));
-  briques[0] = 3;
-  briques[1] = 4;
-  briques[2] = 5;
-  insert(&g, 0, briques);
-  free(briques);
+  briques[0] = 4;
+  briques[1] = 5;
+  briques[2] = 3;
 
+  size_t colonne;
+  int permutations = choix_player(&g, briques, &colonne);
+  
+  for (int i = 0; i < permutations; ++i)
+  {
+    permutation(briques);
+  }
+
+  print_tableau(&g);
+  insert(&g, colonne, briques);
+  print_tableau(&g);
+  printf("choix du joueur :\ncolonne : %zd\nnombre de permutations : %d\n", colonne, permutations);  
 
 
   // size_t *output = malloc(5 * sizeof(size_t));
@@ -880,24 +950,24 @@ int main(int argc, char const *argv[])
   // printf("alignement verticale : %d\nen position : ", av);
   // print_array(output, 5, 0);
   
-  print_tableau(&g);
+  // print_tableau(&g);
 
   // free(output);
 
 
 
-  struct tableau cols;
-  create_tableau(&cols);
-  append(&cols, 2);
-  size_t **save = calloc(g.width, sizeof(size_t*));
-  int p = suppr_alignement(&g, &cols, 1, &save);
-
-  print_tableau(&g);
-  printf("le nombre de points gagnes en ayant placer la brique en %d est de : %d\n", 2, p);
+  // struct tableau cols;
+  // create_tableau(&cols);
+  // append(&cols, 2);
+  // size_t **save = calloc(g.width, sizeof(size_t*));
+  // int p = suppr_alignement(&g, &cols, 1, save);
 
 
-  destroy_tableau(&cols);
+
+
+  // destroy_tableau(&cols);
   destroy_grille(&g);
-  free(save);
+  // free(save);
+  free(briques);
   return 0;
 }
