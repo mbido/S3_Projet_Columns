@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define SIZE_T_MAX ((size_t)(~0UL))
+#define BUFSIZE 256
 
 
 
@@ -903,6 +904,15 @@ int choix_player(struct grille *g, char *briques, size_t *output)
 
 int main(int argc, char const *argv[])
 { 
+  setbuf (stdout, NULL);
+  char buf[BUFSIZE];
+
+  // get the width
+  fgets(buf, BUFSIZE, stdin);
+  int width = atoi(buf);
+
+
+
   srand(time(NULL));
   struct grille g;
   create_grille(&g, 5);
