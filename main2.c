@@ -701,15 +701,6 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
         }
         free(list_ind);
       }
-      // else // als[i2] == 2 ou 1
-      // {
-      //   // on ne s'interesse pas a l'alignement de 1 qui est toujours present
-      //   // on met cette fois-ci une priorite de 2
-      //   res += (als[i2]-1); 
-
-      //   // on veux le punir pour etre trop haut :
-        
-      // }
     }
     free(als);
     ++i;
@@ -950,7 +941,7 @@ int choix_player(struct grille *g, char *briques, size_t *output)
       append(&col, c);
       int points = suppr_alignement(&jeu_temp, &col, 1);
       int punition = punition_hauteur(g, c);
-      (punition > points)? (points = 0) : (points -= punition);
+      (punition > points)? (points /= 2) : (points -= punition);
       destroy_tableau(&col);
 
       // on enregistre points et coup si points >= max_points
