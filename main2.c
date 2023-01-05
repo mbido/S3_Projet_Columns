@@ -386,9 +386,13 @@ k       l
   size_t check_right = 2;
 
   if (colonne < 2)
+  {
     check_left = colonne;
-  if (g->width - colonne < 2)
-    check_right = g->width - colonne;
+  }
+  if (g->width - colonne <= 2)
+  {
+    check_right = g->width - colonne - 1;
+  }
 
 
   // cas ou on se trouve a deux colonnes minimum du bord gauche
@@ -516,6 +520,7 @@ k       l
   }
   return res;
 }
+
 
 // permet de connaitre la taille de l'alignement vertical max et sa position a partir d'une colonne
 // on ne regarde que les 5 premieres briques, les autres ne sont pas utiles
@@ -678,7 +683,13 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
 
 
         // ajout des points :
-        res += lambda * (als[i2] - 2);
+        // on ne met pas '-2' pour avoir une plus grande precision du calcul des points
+        // grace a cela on peut considerer les alignements de deux qui sont quand meme
+        // interessant a avoir lorsque qu'il y a des egalites de points
+        // on ajoute une sorte de priorite grace au ' * 3' pour prendre en compte d'autres facteurs
+        // degradant comme se retrouver trop haut
+        res += lambda * als[i2] * 10; 
+
 
         // sauvegarde des index :
         size_t *list_ind = get_index_from_alignement(g, index, i2, als[i2], SIZE_T_MAX);
@@ -687,6 +698,14 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
           append(output, list_ind[i3]);
         }
         free(list_ind);
+      }
+      else // als[i2] == 2 ou 1
+      {
+        // on ne s'interesse pas a l'alignement de 1 qui est toujours present
+        // on met cette fois-ci une priorite de 2
+        res += (als[i2]-1); 
+
+        // on veux le punir pour etre trop haut :
       }
     }
     free(als);
@@ -869,6 +888,7 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
 // renvoie le nombre de permutation et enregistre dans la variable 'output'
 // sur quelle colonne placer les briques
 // un coup est represente par (3 * colonne + nb_permutations)
+// probleme niveau complexite car on copie a chaque fois tout le tableau pour reinitialiser son coup
 int choix_player(struct grille *g, char *briques, size_t *output)
 {
   int max_points = -1;

@@ -360,9 +360,13 @@ k       l
   size_t check_right = 2;
 
   if (colonne < 2)
+  {
     check_left = colonne;
-  if (g->width - colonne < 2)
-    check_right = g->width - colonne;
+  }
+  if (g->width - colonne <= 2)
+  {
+    check_right = g->width - colonne - 1;
+  }
 
 
   // cas ou on se trouve a deux colonnes minimum du bord gauche
@@ -644,24 +648,26 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
     // pour chacuns des trois alignements (ne compte pas le vertical)
     for (int i2 = 0; i2 < 3; ++i2)
     {
-      if (als[i2] >= 3)
+      // on separe dans 'output' les alignements par une valeur impossible
+      // ici on utilise 'SIZE_T_MAX' definie en haut de fichier
+      append(output, SIZE_T_MAX);
+
+
+      // ajout des points :
+      // avoir un alignement de 3 ou plus rapporte plus de points qu'un alignement de deux
+      // d'autant plus lorsque lambda > 1 ou il ne sert a rien d'avoir un alignement de deux après 
+      // avoir descendu des briques
+      (als[i2] >= 3)? (res += lambda * als[i2]) : (res += als[i2]);
+      
+
+      // sauvegarde des index :
+      size_t *list_ind = get_index_from_alignement(g, index, i2, als[i2], SIZE_T_MAX);
+      for (int i3 = 0; i3 < 5 && list_ind[i3] != SIZE_T_MAX; ++i3)
       {
-        // on separe dans 'output' les alignements par une valeur impossible
-        // ici on utilise 'SIZE_T_MAX' definie en haut de fichier
-        append(output, SIZE_T_MAX);
-
-
-        // ajout des points :
-        res += lambda * (als[i2] - 2);
-
-        // sauvegarde des index :
-        size_t *list_ind = get_index_from_alignement(g, index, i2, als[i2], SIZE_T_MAX);
-        for (int i3 = 0; i3 < 5 && list_ind[i3] != SIZE_T_MAX; ++i3)
-        {
-          append(output, list_ind[i3]);
-        }
-        free(list_ind);
+        append(output, list_ind[i3]);
       }
+      free(list_ind);
+      
     }
     free(als);
     ++i;
@@ -818,7 +824,6 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
   }
   // on supprime les points en trop du aux conflits :
   points -= lambda * suppr_conflit(&index_a_retirer, SIZE_T_MAX);
-  //print_array(index_a_retirer.data, index_a_retirer.length, SIZE_T_MAX - 1);
 
 
   if (next_cols.length > 0)
@@ -973,7 +978,14 @@ int main(int argc, char const *argv[])
 
   // free(output);
 
+  struct tableau index_a_retirer;
+  create_tableau(&index_a_retirer);
+  int pts = count_points(&g, colonne, 1, &index_a_retirer);
+  printf("points prevus : %d\n", pts);
+  destroy_tableau(&index_a_retirer);
 
+  char *al = alignement(&g, 10);
+  print_briques(al);
 
   struct tableau cols;
   create_tableau(&cols);
