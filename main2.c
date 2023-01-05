@@ -64,7 +64,7 @@ void double_hauteur(struct grille *g)
 // permet de copier un tableau de jeu dans un autre
 void copie(struct grille *self, struct grille *other)
 {
-  self->width = other->width;
+self->width = other->width;
   self->height = other->height;
   self->tab = malloc(self->width * self->height * sizeof(char));
   for (size_t i = 0; i < self->width * self->height; ++i)
@@ -156,10 +156,10 @@ char get_color(size_t index, struct grille *g)
 // la permutation se fait vers la gauche et le premier element se retrouve en derniere position
 void permutation(char *briques)
 {
-  char temp = briques[0];
-  briques[0] = briques[1];
-  briques[1] = briques[2];
-  briques[2] = temp;
+  char temp = briques[2];
+  briques[2] = briques[1];
+  briques[1] = briques[0];
+  briques[0] = temp;
 }
 
 char *rand_briques()
@@ -833,6 +833,19 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
   return points;
 }
 
+void printErrorLog(struct grille *g) {
+  for (int i = g->height -1 ; i >= 0 ; --i) {
+    for (int j = 0 ; j < g->width; ++j) {
+      fprintf(stderr, "%c ",g->tab[j + i*g->width]);
+    }
+    fprintf(stderr, "\n");
+  }
+  for (int i = 0 ; i<2*g->width ; ++i) {
+    fprintf(stderr, "-");
+  }
+  fprintf(stderr,"\n");
+}
+
 /////////////// fonctions relatives au joueur ////////////////////
 
 
@@ -923,19 +936,19 @@ int main(int argc, char const *argv[])
   //get the briks and play
   for(;;) 
   {
-    for (int i = 0 ; i<3 ; ++i)
+    for (int i = 2 ; i>=0 ; --i)
     {
       fgets(buf, BUFSIZE, stdin);
       briques[i] = buf[0];
     }
-    permutation = choix_player(&g, &briques, column);
+    permutation = choix_player(&g, briques, &column);
     
     // send column
-    printf("%i\n", column);
+    printf("%li\n", column);
 
     //send permutation
-    printf("%i\n", permutation);
-
+    printf("%li\n", permutation);
+    printErrorLog(&g);
     //receive response
     fgets(buf, BUFSIZE, stdin);
     char response = buf[0];
@@ -1015,6 +1028,5 @@ int main(int argc, char const *argv[])
 
   **/
   destroy_grille(&g);
-  free(briques);
   return 0;
 }
