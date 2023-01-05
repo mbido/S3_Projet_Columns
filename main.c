@@ -858,7 +858,7 @@ int choix_player(struct grille *g, char *briques, size_t *output)
       copie(&jeu_temp, g);
 
       // on fait le coup
-      permutation(briques);
+      
 
       insert(&jeu_temp, c, briques);
 
@@ -874,13 +874,15 @@ int choix_player(struct grille *g, char *briques, size_t *output)
       {
         max_points = points;
         coups.length = 0;
-        append(&coups, 3 * c + (p + 1) % 3);
+        append(&coups, 3 * c + p);
       }
       else if (points == max_points)
       {
         append(&coups, 3 * c + p);
       }
       destroy_grille(&jeu_temp);
+
+      permutation(briques);
     }
   }
 
@@ -891,6 +893,7 @@ int choix_player(struct grille *g, char *briques, size_t *output)
 
 
   // Choix aleatoire :
+  printf("max points = %d\n", max_points);
   size_t choix = coups.data[rand() % coups.length];
   *output = choix / 3; // la colonne 
   int perm = choix % 3; // nombre de permutations
@@ -904,12 +907,7 @@ int choix_player(struct grille *g, char *briques, size_t *output)
 
 int main(int argc, char const *argv[])
 { 
-  setbuf (stdout, NULL);
-  char buf[BUFSIZE];
-
-  // get the width
-  fgets(buf, BUFSIZE, stdin);
-  int width = atoi(buf);
+ 
 
 
 
@@ -926,27 +924,32 @@ int main(int argc, char const *argv[])
     free(b);
   }
 
-  // g.tab[1] = 3;
-  // g.tab[2] = 3;
-  // g.tab[3] = 2;
-  // g.tab[4] = 2;
-  // g.tab[6] = 2;
-  // g.tab[7] = 2;
+  // g.tab[0] = 1;
+  // g.tab[1] = 1;
+  // g.tab[3] = 1;
+  // g.tab[5] = 1;
+  // g.tab[10] = 1;
+  
 
   char *briques = malloc(3 * sizeof(char));
   briques[0] = 4;
-  briques[1] = 5;
-  briques[2] = 3;
+  briques[1] = 1;
+  briques[2] = 6;
+
+
+  print_tableau(&g);
 
   size_t colonne;
   int permutations = choix_player(&g, briques, &colonne);
   
   for (int i = 0; i < permutations; ++i)
   {
+
+    print_briques(briques);
     permutation(briques);
   }
 
-  print_tableau(&g);
+  
   insert(&g, colonne, briques);
   print_tableau(&g);
   printf("choix du joueur :\ncolonne : %zd\nnombre de permutations : %d\n", colonne, permutations);  

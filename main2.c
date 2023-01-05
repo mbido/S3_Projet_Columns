@@ -214,6 +214,33 @@ void print_tableau(struct grille *g)
   printf("|\n");
 }
 
+void printErrorLog(struct grille *g, FILE *f) {
+  char *colors[7] = {"\x1B[0m", "\x1B[31m","\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
+  size_t h = g->height;
+  size_t w = g->width;
+  size_t index = h - 1;
+  for (size_t j = h - 1; j < h; --j)
+  {
+
+    
+    fprintf(f, "|\n");
+    for (size_t i2 = 0; i2 < w; ++i2)
+    {
+      fprintf(f, "----");
+    }
+    fprintf(f, "\n");
+
+    for (size_t i = 0; i < w; ++i)
+    { 
+      index = linearise_co(g, i, j);
+      int color = (int)g->tab[index];
+      fprintf(f, "||%d|", color);
+      
+    }
+  }
+  fprintf(f, "|\n");
+}
+
 // permet d'afficher un array de size_t (pour simplifier les tests)
 void print_array(size_t *array, size_t length, size_t jusqua)
 {
@@ -833,18 +860,7 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
   return points;
 }
 
-void printErrorLog(struct grille *g) {
-  for (int i = g->height -1 ; i >= 0 ; --i) {
-    for (int j = 0 ; j < g->width; ++j) {
-      fprintf(stderr, "%c ",g->tab[j + i*g->width]);
-    }
-    fprintf(stderr, "\n");
-  }
-  for (int i = 0 ; i<2*g->width ; ++i) {
-    fprintf(stderr, "-");
-  }
-  fprintf(stderr,"\n");
-}
+
 
 /////////////// fonctions relatives au joueur ////////////////////
 
@@ -871,7 +887,7 @@ int choix_player(struct grille *g, char *briques, size_t *output)
       copie(&jeu_temp, g);
 
       // on fait le coup
-      permutation(briques);
+      
 
       insert(&jeu_temp, c, briques);
 
@@ -887,13 +903,15 @@ int choix_player(struct grille *g, char *briques, size_t *output)
       {
         max_points = points;
         coups.length = 0;
-        append(&coups, 3 * c + (p + 1) % 3);
+        append(&coups, 3 * c + p);
       }
       else if (points == max_points)
       {
         append(&coups, 3 * c + p);
       }
       destroy_grille(&jeu_temp);
+
+      permutation(briques);
     }
   }
 
@@ -917,6 +935,8 @@ int choix_player(struct grille *g, char *briques, size_t *output)
 
 int main(int argc, char const *argv[])
 { 
+  FILE *fichier_erreurs = fopen("erreurs.txt", "w");
+
   setbuf (stdout, NULL);
   char buf[BUFSIZE];
 
@@ -926,8 +946,8 @@ int main(int argc, char const *argv[])
 
   //variables
   char briques[3];
-  size_t column = 0;
-  size_t permutation = 0;
+  size_t column;
+  size_t permutations;
 
   //grille de jeu
   struct grille g;
@@ -936,19 +956,35 @@ int main(int argc, char const *argv[])
   //get the briks and play
   for(;;) 
   {
-    for (int i = 2 ; i>=0 ; --i)
+    for (int i = 2 ; i >= 0 ; --i)
     {
       fgets(buf, BUFSIZE, stdin);
-      briques[i] = buf[0];
+      briques[i] = atoi(buf);
+      fprintf(fichier_erreurs, "briques[i] = %d\n", (int)briques[i]);
     }
-    permutation = choix_player(&g, briques, &column);
+    fprintf(fichier_erreurs, "\n");
+    permutations = choix_player(&g, briques, &column);
     
+    for (int i = 0; i < permutations; ++i)
+    {
+      permutation(briques);
+    }
+
+    
+    insert(&g, column, briques);
+
+    struct tableau cols;
+    create_tableau(&cols);
+    append(&cols, column);
+
+    int pts = suppr_alignement(&g, &cols, 1);
+    fprintf(fichier_erreurs, "points gagnes : %d\n", pts);
     // send column
     printf("%li\n", column);
 
     //send permutation
-    printf("%li\n", permutation);
-    printErrorLog(&g);
+    printf("%li\n", permutations);
+    printErrorLog(&g, fichier_erreurs);
     //receive response
     fgets(buf, BUFSIZE, stdin);
     char response = buf[0];
@@ -957,76 +993,11 @@ int main(int argc, char const *argv[])
     {
       break;
     }
+    destroy_tableau(&cols);
   }
-/**
-  srand(time(NULL));
-  struct grille g;
-  create_grille(&g, width);
-
-  size_t col;
-  for (int i = 0; i < 30; ++i)
-  {
-    col = rand() % g.width;
-    char *b = rand_briques();
-    insert(&g, col, b);
-    free(b);
-  }
-
-  // g.tab[1] = 3;
-  // g.tab[2] = 3;
-  // g.tab[3] = 2;
-  // g.tab[4] = 2;
-  // g.tab[6] = 2;
-  // g.tab[7] = 2;
-
-  char *briques = malloc(3 * sizeof(char));
-  briques[0] = 4;
-  briques[1] = 5;
-  briques[2] = 3;
-
-  size_t colonne;
-  int permutations = choix_player(&g, briques, &colonne);
   
-  for (int i = 0; i < permutations; ++i)
-  {
-    permutation(briques);
-  }
-
-  print_tableau(&g);
-  insert(&g, colonne, briques);
-  print_tableau(&g);
-  printf("choix du joueur :\ncolonne : %zd\nnombre de permutations : %d\n", colonne, permutations);  
-
-
-  // size_t *output = malloc(5 * sizeof(size_t));
-  // output[0] = output[1] = output[2] = output[3] = output[4] = 0;
-
-  // char av = alignement_vertical(&g, 12, &output);
-
-  // printf("alignement verticale : %d\nen position : ", av);
-  // print_array(output, 5, 0);
-  
-  // print_tableau(&g);
-
-  // free(output);
-
-
-
-  // struct tableau cols;
-  // create_tableau(&cols);
-  // append(&cols, 2);
-  // size_t **save = calloc(g.width, sizeof(size_t*));
-  // int p = suppr_alignement(&g, &cols, 1, save);
-
-
-
-
-  // destroy_tableau(&cols);
+  fclose(fichier_erreurs);
   destroy_grille(&g);
-  // free(save);
-  free(briques);
 
-  **/
-  destroy_grille(&g);
   return 0;
 }
