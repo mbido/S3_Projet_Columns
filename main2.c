@@ -909,7 +909,14 @@ int punition_hauteur(struct grille *g, size_t colonne)
   return res;
 }
 
-
+// donne le nombre d'alignement de 2 a partir d'un tableau d'alignement obtenue grace a la fonction "alignement"
+size_t nbAlign2(char *alignement) {
+  size_t res = 0;
+  for (size_t i = 0 ; i < 3 ; ++i) {
+    if (alignement[i]==2) res++;
+  }
+  return res;
+}
 // permet de choisir son coup
 // renvoie le nombre de permutation et enregistre dans la variable 'output'
 // sur quelle colonne placer les briques
@@ -979,6 +986,11 @@ int choix_player(struct grille *g, char *briques, size_t *output)
 
  //cas de coup.data[0]==0
  if (coups.data[0]==0) {
+  // je comprend pas toute tes fonctions et je vois pas ou on peut compter le nombre d'alignement de 2
+  // en gros ce que je voulais faire c'est que :
+  //      si on ne fait pas de point, on cherche l'emplacement avec le plus d'alignement a 2
+  // si il y en a pas (ce qui sera très rare) on place sur la colonne la plus isolé (si il y a des colonne vide) 
+  // ou la moins remplis
   //output = nbAlign2(g, coups);
  }
   return perm;
