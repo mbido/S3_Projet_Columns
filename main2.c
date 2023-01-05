@@ -640,6 +640,8 @@ size_t *get_index_from_alignement (struct grille *g, size_t index, int type, int
   return res;
 }
 
+
+
 // permet de compter les points qui serons gagnes lors de la suppression
 // des alignements presents en fonction de lambda, le coeficient de points
 // elle prend en argument la colonne ou le bloc de 3 briques est pose
@@ -686,9 +688,9 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
         // on ne met pas '-2' pour avoir une plus grande precision du calcul des points
         // grace a cela on peut considerer les alignements de deux qui sont quand meme
         // interessant a avoir lorsque qu'il y a des egalites de points
-        // on ajoute une sorte de priorite grace au ' * 3' pour prendre en compte d'autres facteurs
+        // on ajoute une sorte de priorite grace au ' * 10' pour prendre en compte d'autres facteurs
         // degradant comme se retrouver trop haut
-        res += lambda * als[i2] * 10; 
+        res += lambda * als[i2] * g->width; 
 
 
         // sauvegarde des index :
@@ -699,14 +701,15 @@ int count_points(struct grille *g, size_t colonne, int lambda, struct tableau *o
         }
         free(list_ind);
       }
-      else // als[i2] == 2 ou 1
-      {
-        // on ne s'interesse pas a l'alignement de 1 qui est toujours present
-        // on met cette fois-ci une priorite de 2
-        res += (als[i2]-1); 
+      // else // als[i2] == 2 ou 1
+      // {
+      //   // on ne s'interesse pas a l'alignement de 1 qui est toujours present
+      //   // on met cette fois-ci une priorite de 2
+      //   res += (als[i2]-1); 
 
-        // on veux le punir pour etre trop haut :
-      }
+      //   // on veux le punir pour etre trop haut :
+        
+      // }
     }
     free(als);
     ++i;
@@ -883,6 +886,37 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
 
 /////////////// fonctions relatives au joueur ////////////////////
 
+// permet de retirer des points si l'index est haut :
+// on regarde les case a la meme hauteur et renvoie le nombre de
+// zero car cela veut dire que cette case est plus haute que toutes 
+// celles ou il y a des zero
+int punition_hauteur(struct grille *g, size_t colonne)
+{
+  // on se place sur la brique la plus haute :
+  size_t j = g->height - 1;
+  size_t index = linearise_co(g, colonne, j);
+  while (index < g->height * g->width && g->tab[index] == 0)
+  {
+    --j;
+    index = linearise_co(g, colonne, j);
+  }
+
+  //colonne vide : pas de punition
+  if(get_color(index, g))
+  {
+    return 0;
+  }
+
+  int res = 0;
+  for (size_t i = 0; i < g->width; ++i)
+  {
+    if (g->tab[linearise_co(g, i, j)] == 0)
+    {
+      ++res;
+    }
+  }
+  return res;
+}
 
 // permet de choisir son coup
 // renvoie le nombre de permutation et enregistre dans la variable 'output'
@@ -915,6 +949,8 @@ int choix_player(struct grille *g, char *briques, size_t *output)
       create_tableau(&col);
       append(&col, c);
       int points = suppr_alignement(&jeu_temp, &col, 1);
+      int punition = punition_hauteur(g, c);
+      (punition > points)? (points = 0) : (points -= punition);
       destroy_tableau(&col);
 
       // on enregistre points et coup si points >= max_points
