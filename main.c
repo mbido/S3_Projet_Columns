@@ -913,28 +913,36 @@ int main(int argc, char const *argv[])
 
   srand(time(NULL));
   struct grille g;
-  create_grille(&g, 5);
+  create_grille(&g, 11);
 
-  size_t col;
-  for (int i = 0; i < 30; ++i)
-  {
-    col = rand() % g.width;
-    char *b = rand_briques();
-    insert(&g, col, b);
-    free(b);
-  }
+  // size_t col;
+  // for (int i = 0; i < 30; ++i)
+  // {
+  //   col = rand() % g.width;
+  //   char *b = rand_briques();
+  //   insert(&g, col, b);
+  //   free(b);
+  // }
 
-  // g.tab[0] = 1;
-  // g.tab[1] = 1;
-  // g.tab[3] = 1;
-  // g.tab[5] = 1;
-  // g.tab[10] = 1;
+  g.tab[0] = 3;
+  g.tab[1] = 2;
+  g.tab[2] = 1;
+  g.tab[5] = 1;
+  g.tab[7] = 4;
+  g.tab[8] = 3;
+  g.tab[9] = 2;
+  g.tab[10] = 2;
+  g.tab[11] = 2;
+  g.tab[12] = 2;
+  g.tab[13] = 6;
+  g.tab[16] = 5;
+  g.tab[20] = 5;
   
 
   char *briques = malloc(3 * sizeof(char));
-  briques[0] = 4;
-  briques[1] = 1;
-  briques[2] = 6;
+  briques[0] = 1;
+  briques[1] = 5;
+  briques[2] = 5;
 
 
   print_tableau(&g);
@@ -944,8 +952,6 @@ int main(int argc, char const *argv[])
   
   for (int i = 0; i < permutations; ++i)
   {
-
-    print_briques(briques);
     permutation(briques);
   }
 
@@ -969,16 +975,17 @@ int main(int argc, char const *argv[])
 
 
 
-  // struct tableau cols;
-  // create_tableau(&cols);
-  // append(&cols, 2);
-  // size_t **save = calloc(g.width, sizeof(size_t*));
-  // int p = suppr_alignement(&g, &cols, 1, save);
+  struct tableau cols;
+  create_tableau(&cols);
+  append(&cols, colonne);
+  int p = suppr_alignement(&g, &cols, 1);
+  printf("points = %d\n", p);
+  print_tableau(&g);
 
 
 
 
-  // destroy_tableau(&cols);
+  destroy_tableau(&cols);
   destroy_grille(&g);
   // free(save);
   free(briques);

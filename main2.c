@@ -215,7 +215,6 @@ void print_tableau(struct grille *g)
 }
 
 void printErrorLog(struct grille *g, FILE *f) {
-  char *colors[7] = {"\x1B[0m", "\x1B[31m","\x1B[32m", "\x1B[33m", "\x1B[34m", "\x1B[35m", "\x1B[36m"};
   size_t h = g->height;
   size_t w = g->width;
   size_t index = h - 1;
@@ -817,19 +816,20 @@ int suppr_alignement(struct grille *g, struct tableau *colonnes, int lambda)
     if (index == SIZE_T_MAX) {
       continue;
     }
-    size_t col = get_colonne(index, g);
+    //size_t col = get_colonne(index, g);
     
     g->tab[index] = 0;
+  }
 
-    // on applique la gravite sur chaque colonne d'index retire
+  // on applique la gravite sur chaque colonne d'index retire
+  for(size_t col = 0; col < g->width; ++col)
+  {
     bool grv = gravite(g, col);
     if (grv)
     {
       gravite_applique[col] = grv;
     }
   }
-
-
   // si la gravite a ete applique on fait un appel recursif sur toutes les colonnes descendues
   // avec lambda incremente on renvoie le total des points
 
@@ -953,16 +953,19 @@ int main(int argc, char const *argv[])
   struct grille g;
   create_grille(&g, width);
 
+  int iteration = 0;
+
   //get the briks and play
   for(;;) 
   {
+    ++iteration;
+    fprintf(fichier_erreurs, "iteration : %d\n", iteration);
     for (int i = 2 ; i >= 0 ; --i)
     {
       fgets(buf, BUFSIZE, stdin);
       briques[i] = atoi(buf);
-      fprintf(fichier_erreurs, "briques[i] = %d\n", (int)briques[i]);
+      fprintf(fichier_erreurs, "briques[%d] = %d\n", i, (int)briques[i]);
     }
-    fprintf(fichier_erreurs, "\n");
     permutations = choix_player(&g, briques, &column);
     
     for (int i = 0; i < permutations; ++i)
@@ -983,8 +986,10 @@ int main(int argc, char const *argv[])
     printf("%li\n", column);
 
     //send permutation
+
     printf("%li\n", permutations);
     printErrorLog(&g, fichier_erreurs);
+    fprintf(fichier_erreurs, "\n\n\n");
     //receive response
     fgets(buf, BUFSIZE, stdin);
     char response = buf[0];
