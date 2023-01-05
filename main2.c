@@ -909,6 +909,7 @@ int punition_hauteur(struct grille *g, size_t colonne)
   return res;
 }
 
+
 // permet de choisir son coup
 // renvoie le nombre de permutation et enregistre dans la variable 'output'
 // sur quelle colonne placer les briques
@@ -957,7 +958,7 @@ int choix_player(struct grille *g, char *briques, size_t *output)
         append(&coups, 3 * c + p);
       }
       destroy_grille(&jeu_temp);
-
+²
       permutation(briques);
     }
   }
@@ -967,13 +968,19 @@ int choix_player(struct grille *g, char *briques, size_t *output)
   // intuitivement on peux se dire que prendre toujours le premier est une mauvaise idee
   // car le joueur ne jouera que la premiere colonne
 
-
+  //                      on peut optimiser ca
+  /*
   // Choix aleatoire :
   size_t choix = coups.data[rand() % coups.length];
   *output = choix / 3; // la colonne 
   int perm = choix % 3; // nombre de permutations
   destroy_tableau(&coups);
+  */
 
+ //cas de coup.data[0]==0
+ if (coups.data[0]==0) {
+  //output = nbAlign2(g, coups);
+ }
   return perm;
 }
 
